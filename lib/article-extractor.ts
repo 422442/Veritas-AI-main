@@ -33,7 +33,7 @@ async function extractWithJina(url: string): Promise<Article> {
         'X-Return-Format': 'markdown',
         'Accept': 'text/plain'
       },
-      timeout: 15000
+      timeout: 8000
     });
 
     if (response.data && response.data.length > 200) {
@@ -63,14 +63,14 @@ async function extractWithFirecrawl(url: string): Promise<Article> {
       'https://api.firecrawl.dev/v0/scrape',
       { 
         url,
-        formats: ['markdown', 'html']
+        formats: ['markdown']
       },
       {
         headers: {
           'Authorization': `Bearer ${process.env.FIRECRAWL_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        timeout: 20000
+        timeout: 12000
       }
     );
 
@@ -128,11 +128,18 @@ export async function extractArticle(url: string): Promise<Article> {
     throw new Error('Invalid URL format. Please provide a valid HTTP or HTTPS URL.');
   }
 
-  const methods = [
-    { name: 'Jina AI Reader', fn: extractWithJina },
-    { name: 'Firecrawl', fn: extractWithFirecrawl },
-    { name: 'Article Extractor', fn: extractWithArticleExtractor }
-  ];
+  // Skip Jina in serverless environments (Vercel/Lambda) due to timeout issues
+  const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  const methods = isServerless
+    ? [
+        { name: 'Firecrawl', fn: extractWithFirecrawl },
+        { name: 'Article Extractor', fn: extractWithArticleExtractor }
+      ]
+    : [
+        { name: 'Jina AI Reader', fn: extractWithJina },
+        { name: 'Firecrawl', fn: extractWithFirecrawl },
+        { name: 'Article Extractor', fn: extractWithArticleExtractor }
+      ];
 
   const errors: string[] = [];
 
