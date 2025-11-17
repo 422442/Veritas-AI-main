@@ -66,8 +66,15 @@ export default function Home() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Analysis failed")
+        let errorMessage = "Analysis failed"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response body is empty or invalid JSON, use default error
+          errorMessage = `Server error (${response.status})`
+        }
+        throw new Error(errorMessage)
       }
 
       // Step 2: Web Search & Fact-Checking (20-40%)
