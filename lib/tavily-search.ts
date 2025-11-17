@@ -59,7 +59,7 @@ export async function searchTavily(
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 15000
+        timeout: 10000
       }
     );
 
