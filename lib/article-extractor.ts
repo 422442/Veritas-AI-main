@@ -162,11 +162,15 @@ export async function extractArticle(url: string): Promise<Article> {
     throw new Error('Invalid URL format. Please provide a valid HTTP or HTTPS URL.');
   }
 
+  // Skip Readability in serverless environments due to jsdom ESM/CommonJS issues
+  // Only use it locally
+  const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  
   const methods = [
     { name: 'Jina AI Reader', fn: extractWithJina },
     { name: 'Firecrawl', fn: extractWithFirecrawl },
     { name: 'Article Extractor', fn: extractWithArticleExtractor },
-    { name: 'Readability', fn: extractWithReadability }
+    ...(isServerless ? [] : [{ name: 'Readability', fn: extractWithReadability }])
   ];
 
   const errors: string[] = [];
