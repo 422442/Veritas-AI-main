@@ -207,16 +207,22 @@ export async function POST(request: NextRequest) {
 
     // Use Tavily for comprehensive web search and fact-checking
     let webSearchContext = ''
+    
+    // Fire off searches in background with timeout protection
+    const searchTimeoutMs = 8000; // 8 seconds max for searches
     if (sourceUrl || articleText) {
       try {
-        // Extract key claims/topics from article for better search
         const searchQuery = extractionMetadata?.title || articleText.substring(0, 200)
         
-        // Search for fact-checks and related news
-        const [factCheckResponse, newsResponse] = await Promise.all([
+        // Create race: searches vs timeout
+        const searchPromise = Promise.all([
           searchFactChecks(searchQuery).catch(() => null),
-          sourceUrl ? searchTavily(new URL(sourceUrl).hostname).catch(() => null) : null
-        ])
+          sourceUrl ? searchTavily(new URL(sourceUrl).hostname).catch(() => null) : Promise.resolve(null)
+        ]);
+        
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([null, null]), searchTimeoutMs));
+        
+        const [factCheckResponse, newsResponse] = await Promise.race([searchPromise, timeoutPromise]) as any;
         
         const contexts = []
         
@@ -238,7 +244,7 @@ export async function POST(request: NextRequest) {
           webSearchContext = '\n\n--- WEB SEARCH VERIFICATION (via Tavily AI) ---\n' + contexts.join('\n\n') + '\n--- END WEB SEARCH ---\n'
         }
       } catch (error) {
-        console.log('[Tavily] Web search failed:', error)
+        console.log('[Tavily] Web search failed or timed out:', error)
       }
     }
 
